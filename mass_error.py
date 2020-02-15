@@ -165,4 +165,6 @@ if __name__ == '__main__':
         * (math.sqrt(2)*c.area()*a)
 
     mass_error = math.sqrt()
+    print(density_sensitivity)
     print(mass_error)
+
