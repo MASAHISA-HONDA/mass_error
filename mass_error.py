@@ -45,11 +45,6 @@ class AreaError():
         area = math.pi * diameter**2 /4
         return area
 
-    def diameter_error_abs(self):
-        diameter_error = self.diameter_error
-        return diameter_error
-
-
 
 class AlphaError():
     def __init__(self,alpha,alpha_error):
@@ -79,16 +74,18 @@ class MassError():
     def mass_diff(self):
         α = sympy.Symbol('α')
         ρ = sympy.Symbol('ρ')
-        A = sympy.Symbol('A')
+        Pi = sympy.Symbol('Pi')
+        D = sympy.Symbol('D')
         Pv = sympy.Symbol('Pv')
-        G = α * ρ * A * sympy.sqrt(2 * Pv / ρ) 
+        G = α * ρ * (Pi * D**2 /4) * sympy.sqrt(2 * Pv / ρ) 
         dGdα = sympy.diff(G,α)
         dGdρ = sympy.diff(G,ρ)
-        dGdA = sympy.diff(G,A)
+        dGdD = sympy.diff(G,D)
         dGdPv = sympy.diff(G,Pv)
+        print('G= '+ str(G))
         print('dG/dα= '+ str(dGdα))
         print('dG/dρ= '+ str(dGdρ))
-        print('dG/dA= '+ str(dGdA))
+        print('dG/dD= '+ str(dGdD))
         print('dG/dPv= '+ str(dGdPv))
 
 
@@ -99,8 +96,6 @@ if __name__ == '__main__':
     #DSAレンジ(psi)
     #DSA誤差 (%)
     #温度誤差(℃)
-
-
     ps = 11050
     r = 29.3
     t = 15
@@ -110,38 +105,35 @@ if __name__ == '__main__':
 
     print()
     z = DensityError(ps, r, t, ps_dsa, ps_dsa_error ,t_error) 
-    density_error = math.sqrt(z.ps_error_abs()**2 * (1/(z.r*z.t))**2 + \
+    density_error_abs = math.sqrt(z.ps_error_abs()**2 * (1/(z.r*z.t))**2 + \
         z.t_error**2 * ((-1) * z.ps/(z.r * z.t**2))**2)
     print('密度 '+ str(round(z.density(),3)) + '[kg/s]')
     print('壁圧DSAのレンジ ' +str(ps_dsa) +'[psi]')
     print('DSAの誤差 ' +str(ps_dsa_error) +'[%F.S]')
     print('DSAの絶対誤差 ' +str(round(z.ps_error_abs(),3)) +'[mmAq]')
     z.diff()
-    print('密度誤差は ' + str(round(density_error,4)) + '[kg/m3]')
+    print('密度誤差は ' + str(round(density_error_abs,4)) + '[kg/m3]')
 
 
     #配管直径 mm
     #直径誤差　mm
-
     d = 500
-    d_error = 5
+    d_error = 2
     print()
     c = AreaError(d ,d_error)
-    print('配管直径 '+ str(d) + '[m]')
-    print('配管直径誤差 '+ str(round(c.diameter_error_abs(),3)) + '[m]')
+    print('配管直径 '+ str(d/1000) + '[m]')
+    print('配管直径誤差 '+ str(round(d_error/1000,3)) + '[m2]')
 
 
     #流量係数α
     #流量計数誤差[%]
-    a = 1.0
+    alpha = 1.0
     a_error = 0.5
     print()
-    a = AlphaError(a ,a_error)
-    print('流量係数α '+ str(a))
+    a = AlphaError(alpha ,a_error)
+    print('流量係数α '+ str(alpha))
     print('流量係数誤差 '+ str(round(a.alpha_error_abs(),3)))
 
-
-    
     #動圧(mmAq)
     #DSAレンジ (psi)
     #DSA誤差　(%)
@@ -149,7 +141,7 @@ if __name__ == '__main__':
     pv_dsa = 1
     pv_dsa_error = 0.12
     print()
-    v = VelocityError(pv, pv_dsa_error, pv_dsa_error, z.density(), density_error)
+    v = VelocityError(pv, pv_dsa_error, pv_dsa_error, z.density(), density_error_abs)
     print('差圧DSAのレンジ '+ str(pv_dsa)+'[psi]')
     print('DSAの誤差 '+ str(pv_dsa_error)+'[%F.S]')
 
@@ -158,13 +150,25 @@ if __name__ == '__main__':
     e = MassError()
     e.mass_diff()
 
-    a_sensitivity = a.alpha_error_abs()**2 \
-        * (math.sqrt(2)*c.area()*math.sqrt(pv/10000*98066.5/z.density()) )**2
+    print()
+    x = math.sqrt((pv/10000*98066.5)/z.density())
 
-    density_sensitivity = density_error()**2 \
-        * (math.sqrt(2)*c.area()*a)
+    #dG/dα= sqrt(2)*D**2*Pi*ρ*sqrt(Pv/ρ)/4
+    alpha_sens = a.alpha_error_abs()**2 \
+    * (math.sqrt(2)*(d/1000)**2*math.pi*z.density()*x/4)**2
+    print('流量係数αの誤差感度 '+str(round(alpha_sens,7)))
 
-    mass_error = math.sqrt()
-    print(density_sensitivity)
-    print(mass_error)
+    #dG/dρ= dG/dρ= sqrt(2)*D**2*Pi*α*sqrt(Pv/ρ)/8
+    ro_sens = density_error_abs**2 \
+    * (math.sqrt(2)*(d/1000)**2*math.pi*alpha*x/8)**2
+    print('密度ρの誤差感度 '+str(round(ro_sens,8)))
 
+    #dG/dD= sqrt(2)*D*Pi*α*ρ*sqrt(Pv/ρ)/2
+    diameter_sens = (d_error/1000)**2 \
+    * (math.sqrt(2)*(d/1000)*math.pi*alpha*z.density()*x/2)**2
+    print('直径Dの誤差感度 '+str(round(diameter_sens,8)))
+
+    #dG/dD= sqrt(2)*D**2*Pi*α*ρ*sqrt(Pv/ρ)/(8*Pv)
+    pv_sens = (v.pv_error_abs()/10000*98066.5)**2 \
+    * (math.sqrt(2)*(d/1000)**2*math.pi*alpha*z.density()*x/(8*pv/10000*98066.5))**2
+    print('動圧Pvの誤差感度 '+str(pv_sens))
